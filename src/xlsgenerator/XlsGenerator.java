@@ -34,7 +34,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
  */
 public class XlsGenerator {
     
-    static final String version = "0.1.0.0";
+    static final String version = "0.1.0.1";
 
     static TreeMap<String,String> properties = new TreeMap<>();
     
