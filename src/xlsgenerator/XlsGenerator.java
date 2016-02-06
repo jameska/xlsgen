@@ -30,7 +30,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
  *
- * @author James
+ * @author James Ka
  */
 public class XlsGenerator {
     
