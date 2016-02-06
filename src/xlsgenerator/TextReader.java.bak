@@ -129,17 +129,17 @@ public class TextReader
 
         @Override
         public boolean isReadOnly(int column) throws SQLException {
-            return true;
+            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
 
         @Override
         public boolean isWritable(int column) throws SQLException {
-            return false;
+            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
 
         @Override
         public boolean isDefinitelyWritable(int column) throws SQLException {
-            return false;
+            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
 
         @Override
@@ -208,7 +208,7 @@ public class TextReader
 
     @Override
     public boolean wasNull() throws SQLException {
-        return false;
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override

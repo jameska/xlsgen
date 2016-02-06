@@ -30,7 +30,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
  *
- * @author James Ka
+ * @author James
  */
 public class XlsGenerator {
     
@@ -127,14 +127,14 @@ public class XlsGenerator {
                         if (ptg instanceof RefPtg && ((RefPtg)ptg).isRowRelative())
                             try {
                                 ((RefPtg)ptg).setRow(((RefPtg)ptg).getRow()+(to-from));
-                                //System.out.printf("part(%s)=%s\n", ptg.getClass().getName(), ptg.toFormulaString());
+                                System.out.printf("part(%s)=%s\n", ptg.getClass().getName(), ptg.toFormulaString());
                             }
                             catch (Exception ex) {}
                     }
                     Formula formula = Formula.create(ptgs);
                     if (formula!=null) {
                         String txtFormula = FormulaRenderer.toFormulaString(evaluatorWb, ptgs);
-                        //System.out.println(txtFormula);
+                        System.out.println(txtFormula);
                         newCell.setCellFormula(txtFormula);
                     }
                     else
@@ -153,23 +153,13 @@ public class XlsGenerator {
     
     /**
      * @param args the command line arguments
-     * @throws java.io.FileNotFoundException
      */
     public static void main(String[] args) 
             throws FileNotFoundException, IOException 
     {
         new XlsGenerator().build(args);
     }
-    
-    /*
-    
-    ## BDXX_START ##
-     ## CDXX_NAME  
-     ## RDXX_NAME
-    
-                                                             ## BDXX_END ##
-     */
-    
+
     /**
      * @param args the command line arguments
      */
@@ -217,7 +207,7 @@ public class XlsGenerator {
             
             System.out.println("-- Names --");
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-            // détection des sources de données
+            // dÃ©tection des sources de donnÃ©es
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
             for (int N=0; N<wb.getNumberOfNames(); ++N)
             {
@@ -227,7 +217,7 @@ public class XlsGenerator {
                 if (cellName.contains("_")) {
                     String []items = cellName.split("_");
                     if ((items[0].length() > 1 && 
-                         (items[0].startsWith("D") || items[0].startsWith("B"))) ||
+                         items[0].startsWith("D")) ||
                         (items[0].length() > 2 && 
                          (items[0].startsWith("CD") ||
                           items[0].startsWith("RD")))) {
@@ -253,8 +243,10 @@ public class XlsGenerator {
             }
             System.out.println("-- Names --");
         
+            // recherche des zones nommÃ©es
+        
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-            // association des champs de la source de données
+            // dÃ©tection des sources de donnÃ©es
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
         
             TextReader rslt = new TextReader();
@@ -272,11 +264,11 @@ public class XlsGenerator {
                         if (null!=(ci=ds.cellules.get(colName)))
                             ci.source = N;  // columnIndex
                     }
-                    System.out.println(colName);
+                    System.out.println(rsltMeta.getColumnName(N));
                 }
             }
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-            // remplissage des sources de données
+            // vidages des sources de donnÃ©es
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
             int initialRow = firstRow;
             int rowIndex = 0;
@@ -311,19 +303,13 @@ public class XlsGenerator {
                 ++firstRow;
                 ++rowIndex;
             }
-            // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-            // recalcul des cellules
-            // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
             
             evaluator.evaluateAll();
             
-            // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-            // Sauvegarde du document final
-            // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-            try (FileOutputStream output = new FileOutputStream(properties.get("out")))
-            {
-                wb.write(output);
-            }
+            FileOutputStream output = new FileOutputStream(properties.get("out"));
+            wb.write(output);
+            output.close();
+            
         } catch (SQLException ex) {
             Logger.getLogger(XlsGenerator.class.getName()).log(Level.SEVERE, null, ex);
         }
