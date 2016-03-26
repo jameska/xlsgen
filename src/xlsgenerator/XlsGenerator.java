@@ -5,9 +5,11 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -34,17 +36,38 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
  */
 public class XlsGenerator {
     
-    static final String version = "0.1.0.1";
+    public static final String version = "0.1.0.1";
+    
+    /**
+     * Public
+     */
 
-    static TreeMap<String,String> properties = new TreeMap<>();
+    public String inputFileName;
+    public String inputName;
+    public String templateFileName;
+    public String outputFileName;
     
-    static String inputFileName;
-    static String inputName;
-    static String templateFileName;
-    static String outputFileName;
-    
+    /**
+     * Static 
+     */
+
     static FormulaEvaluator evaluator;
     static XSSFEvaluationWorkbook evaluatorWb;
+    static TreeMap<String,String> properties = new TreeMap<>();
+    
+    class DataSourceSql {
+        String dsName;
+        ResultSet rslt;
+
+        public DataSourceSql(String dsName, ResultSet rslt) {
+            this.dsName = dsName;
+            this.rslt = rslt;
+        }
+    }
+    
+    /**
+     * Private
+     */
     
     class CellInfo {
         String name;
@@ -109,7 +132,6 @@ public class XlsGenerator {
             // Set the cell data type
             newCell.setCellType(srcCell.getCellType());
 
-            // Set the cell data value
             switch (srcCell.getCellType()) {
                 case Cell.CELL_TYPE_BLANK:
                     newCell.setCellValue(srcCell.getStringCellValue());
@@ -122,7 +144,10 @@ public class XlsGenerator {
                     break;
                 case Cell.CELL_TYPE_FORMULA:
                 {
-                    Ptg [] ptgs = FormulaParser.parse(srcCell.getCellFormula(), evaluatorWb, FormulaType.CELL, wb.getSheetIndex(ws));
+                    Ptg [] ptgs = FormulaParser.parse(srcCell.getCellFormula(), 
+                                                      evaluatorWb, 
+                                                      FormulaType.CELL, 
+                                                      wb.getSheetIndex(ws));
                     for (Ptg ptg : ptgs) {
                         if (ptg instanceof RefPtg && ((RefPtg)ptg).isRowRelative())
                             try {
@@ -151,16 +176,6 @@ public class XlsGenerator {
         }
     }
     
-    /**
-     * @param args the command line arguments
-     * @throws java.io.FileNotFoundException
-     */
-    public static void main(String[] args) 
-            throws FileNotFoundException, IOException 
-    {
-        new XlsGenerator().build(args);
-    }
-    
     /*
     
     ## BDXX_START ##
@@ -173,32 +188,11 @@ public class XlsGenerator {
     /**
      * @param args the command line arguments
      */
-    public void build(String[] args) throws FileNotFoundException, IOException {
+    public void build(Map<String,DataSourceSql> dataSourcesSql) 
+    //public void build(String dsName, ResultSet rslt) 
+            throws FileNotFoundException, IOException 
+    {
         
-        String propName = null;
-        for (String arg : args) {
-            if (propName!=null) {
-                properties.put(propName, arg);
-                propName = null;
-                continue;
-            }
-            if (arg.startsWith("-")) {
-                propName = arg.substring(1);
-            }
-        }
-        if (properties.containsKey("in"))
-            inputFileName = properties.get("in");
-        if (properties.containsKey("template"))
-            templateFileName = properties.get("template");
-        if (properties.containsKey("out"))
-            outputFileName = properties.get("out");
-        if (properties.containsKey("inname"))
-            inputName = properties.get("inname");
-        
-        if (inputFileName==null || templateFileName==null || outputFileName==null) {
-            System.out.printf("java -jar XlsGenerator.jar -in <input> -inname <name> -template <xlsx> -out <xlsx>\n");
-            return;
-        }
         // ouverture du template
         File excel =  new File (templateFileName);
         try (FileInputStream fis = new FileInputStream(excel);
@@ -251,65 +245,88 @@ public class XlsGenerator {
                 
                 firstRow = reference.getRow();
             }
-            System.out.println("-- Names --");
-        
+            System.out.println("-- End Names --");
+
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
             // association des champs de la source de données
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-        
-            TextReader rslt = new TextReader();
+            System.out.println("-- DataSource --");
+            for (DataSourceSql dss : dataSourcesSql.values()) {
+                ResultSet rslt = dss.rslt;
+                String dsName = dss.dsName;
+
+                if (rslt==null) {
+                    TextReader textReader = new TextReader();
+
+                    textReader.fillData(inputFileName);
+
+                    rslt = textReader;
+                }
             
-            rslt.fillData(properties.get("in"));
-            
-            ResultSetMetaData rsltMeta = rslt.getMetaData();
-            {
-                DataSource ds = datasources.get("RDPAYS");
-                for (int N=1; N<=rsltMeta.getColumnCount(); ++N)
+                ResultSetMetaData rsltMeta = rslt.getMetaData();
                 {
-                    String colName = rsltMeta.getColumnName(N);
-                    if (ds!=null) {
-                        CellInfo ci;
-                        if (null!=(ci=ds.cellules.get(colName)))
-                            ci.source = N;  // columnIndex
+                    //                              vvvvvv
+                    DataSource ds = datasources.get(dsName);
+                    for (int N=1; N<=rsltMeta.getColumnCount(); ++N)
+                    {
+                        String colName = rsltMeta.getColumnName(N).toUpperCase();
+                        if (ds!=null) {
+                            CellInfo ci;
+                            if (null!=(ci=ds.cellules.get(colName)))
+                                ci.source = N;  // columnIndex
+                        }
+                        System.out.println(colName);
                     }
-                    System.out.println(colName);
                 }
             }
+            System.out.println("-- DataSource --");
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
             // remplissage des sources de données
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-            int initialRow = firstRow;
-            int rowIndex = 0;
-            while (rslt.next()) {
-                if (rowIndex>0) {
-                    ws.shiftRows(firstRow, firstRow+2, 1, true, false);
-                    
-                    copyRow(ws, initialRow, firstRow);
-                }
+            for (DataSourceSql dss : dataSourcesSql.values())
+            {
+                int initialRow = firstRow;
+                int rowIndex = 0;
+
+                ResultSet rslt = dss.rslt;
+                String dsName = dss.dsName;
+                ResultSetMetaData rsltMeta = rslt.getMetaData();
                 
-                for (DataSource ds : datasources.values()) {
-                    for (CellInfo ci : ds.cellules.values()) {
-                        if (ci.source<1) continue;
-                        XSSFRow row = ws.getRow(firstRow);
-                        if (row==null)
-                            row = ws.createRow(firstRow);
-                        XSSFCell cell = row.getCell(ci.col);
-                        if (cell==null)
-                            cell = row.createCell(ci.col);
-                        //rslt.getObject(ci.source);
-                        switch (rsltMeta.getColumnType(ci.source)) {
-                            case Types.INTEGER:
-                                cell.setCellValue(rslt.getInt(ci.source)); break;
-                            case Types.DECIMAL:
-                                cell.setCellValue(rslt.getDouble(ci.source)); break;
-                            default:
-                                cell.setCellValue(rslt.getString(ci.source));
+                while (rslt.next()) {
+
+                    // Ajout d'une nouvelle ligne par duplication
+                    if (rowIndex>0) {
+                        ws.shiftRows(firstRow, firstRow+2, 1, true, false);
+
+                        copyRow(ws, initialRow, firstRow);
+                    }
+
+                    for (DataSource ds : datasources.values()) {
+                        for (CellInfo ci : ds.cellules.values()) {
+                            if (ci.source<1) continue;
+                            XSSFRow row = ws.getRow(firstRow);
+                            if (row==null)
+                                row = ws.createRow(firstRow);
+                            XSSFCell cell = row.getCell(ci.col);
+                            if (cell==null)
+                                cell = row.createCell(ci.col);
+                            //rslt.getObject(ci.source);
+                            switch (rsltMeta.getColumnType(ci.source)) {
+                                case Types.INTEGER:
+                                    cell.setCellValue(rslt.getInt(ci.source)); break;
+                                case Types.DECIMAL:
+                                    cell.setCellValue(rslt.getDouble(ci.source)); break;
+                                case Types.DATE:
+                                    cell.setCellValue(rslt.getDate(ci.source)); break;
+                                default:
+                                    cell.setCellValue(rslt.getString(ci.source));
+                            }
                         }
                     }
+                    // add 
+                    ++firstRow;
+                    ++rowIndex;
                 }
-                // add 
-                ++firstRow;
-                ++rowIndex;
             }
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
             // recalcul des cellules
@@ -320,14 +337,62 @@ public class XlsGenerator {
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
             // Sauvegarde du document final
             // -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-            try (FileOutputStream output = new FileOutputStream(properties.get("out")))
+            try (FileOutputStream output = new FileOutputStream(outputFileName))
             {
                 wb.write(output);
             }
         } catch (SQLException ex) {
             Logger.getLogger(XlsGenerator.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
     }
     
+    /**
+     * @param args the command line arguments
+     * @throws java.io.FileNotFoundException
+     */
+    public static void main(String[] args) 
+            throws FileNotFoundException, IOException 
+    {
+        new XlsGenerator().run(args);
+    }
+    public void run(String[] args) 
+            throws FileNotFoundException, IOException 
+    {
+        String propName = null;
+        for (String arg : args) {
+            if (propName!=null) {
+                properties.put(propName, arg);
+                propName = null;
+                continue;
+            }
+            if (arg.startsWith("-")) {
+                propName = arg.substring(1);
+            }
+        }
+        
+        XlsGenerator generator;
+        generator = new XlsGenerator();
+        if (properties.containsKey("in"))
+            generator.inputFileName = properties.get("in");
+        if (properties.containsKey("template"))
+            generator.templateFileName = properties.get("template");
+        if (properties.containsKey("out"))
+            generator.outputFileName = properties.get("out");
+        if (properties.containsKey("inname"))
+            generator.inputName = properties.get("inname");
+        
+        if (generator.inputFileName==null || 
+            generator.templateFileName==null || 
+            generator.outputFileName==null) {
+            System.out.printf("java -jar XlsGenerator.jar -in <input> -inname <name> -template <xlsx> -out <xlsx>\n");
+            return;
+        }
+        
+        Map<String,DataSourceSql> sources = new TreeMap<>();
+        
+        sources.put("PAYS", new DataSourceSql("PAYS", null));
+        
+        generator.build(sources);
+        //generator.build("RDTEST", rslt);
+    }
 }
