@@ -1,0 +1,6 @@
+LEVEL;DATE;MESSAGE
+ERR;20160325;uniquement des digits
+ERR;20160325;uniquement des caractères alpha
+ERR;20160326;aucun message
+ERR;20160326;rien à dire
+INF;20160225;Information
