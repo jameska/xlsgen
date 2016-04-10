@@ -96,7 +96,8 @@ public class XlsGenerator {
         int firstRow;
         int rowCount;
         
-        TreeMap<String, CellInfo> cellules = new TreeMap<>();
+        final TreeMap<String, String> props = new TreeMap<>();
+        final TreeMap<String, CellInfo> cellules = new TreeMap<>();
         
         //public DataSource() {}
 
@@ -106,7 +107,6 @@ public class XlsGenerator {
             firstFixedRow = Integer.MAX_VALUE;
         }
     }
-    
     static void copyRow(XSSFSheet ws, int from, int to)
     {
         XSSFRow srcRow = ws.getRow(from);
@@ -209,7 +209,6 @@ public class XlsGenerator {
              XSSFWorkbook wb = new XSSFWorkbook(fis))
         {
             evaluator = wb.getCreationHelper().createFormulaEvaluator();
-            //FormulaParser.parse(propName, null, formulaType, sheetIndex);
             evaluatorWb = XSSFEvaluationWorkbook.create(wb);
             
             XSSFSheet ws = wb.getSheetAt(0);
@@ -219,8 +218,6 @@ public class XlsGenerator {
             //int firstRow = -1;
             int lastRow;
             TreeMap<String,DataSource> datasources = new TreeMap<>();
-            //TreeMap<String,DataSource> datasources = new TreeMap<>();
-            //TreeMap<String,DataSource> datasources = new TreeMap<>();
             lastRow = ws.getLastRowNum();
             
             analyseNames(wb, datasources);
@@ -273,8 +270,8 @@ public class XlsGenerator {
             ArrayList<DataSource> datasourcesByFirstRow = new ArrayList<>();
             //Collections.copy(datasourcesByFirstRow, datasources.values());
             datasources.values().forEach((DataSource t) -> {
-                datasourcesByFirstRow.add(t);
-            });
+                    datasourcesByFirstRow.add(t);
+                });
             Collections.sort(datasourcesByFirstRow, (DataSource o1, DataSource o2) -> -(o1.firstRow-o2.firstRow));
             
             for (DataSource ds : datasourcesByFirstRow) {
@@ -358,27 +355,32 @@ public class XlsGenerator {
             CellReference reference = new CellReference(name.getRefersToFormula());
             int firstRow = reference.getRow();
             String []items = cellName.split("_");
+            DataSource ds;
+            String dsName;
             if (items[0].length() > 3 &&
                 (items[0].startsWith("CXD") || items[0].startsWith("RXD")))
             {
                 System.out.print("(X)");
-                DataSource ds;
-                String dsName;
                 if (null==(ds=datasources.get(dsName=items[0].substring(3))))
                 {
                     ds = new DataSource(dsName);
                     datasources.put(ds.name, ds);
                 }
-                ds.cellules.put(items[1], new CellInfo(items[1], reference.getRow(), reference.getCol()));
+                if (items[1].equals("FILTER")) {
+                    XSSFSheet ws = wb.getSheet(reference.getSheetName());
+                    String dsproperties = ws.getRow(reference.getRow()).getCell(reference.getCol()).getStringCellValue();
+                    System.out.println("FILTER:"+dsproperties);
+                    //ds.props.put();
+                }
+                else
+                    ds.cellules.put(items[1], new CellInfo(items[1], reference.getRow(), reference.getCol()));
                 if (ds.firstRow>firstRow)
                     ds.firstRow=firstRow;
             }
             else if (items[0].length() > 2 &&
-                (items[0].startsWith("CD") || items[0].startsWith("RD")))
+                     (items[0].startsWith("CD") || items[0].startsWith("RD")))
             {
                 System.out.print("(*)");
-                DataSource ds;
-                String dsName;
                 if (null==(ds=datasources.get(dsName=items[0].substring(2))))
                 {
                     ds = new DataSource(dsName);
@@ -388,11 +390,9 @@ public class XlsGenerator {
                 if (ds.firstRow>firstRow)
                     ds.firstRow=firstRow;
             }
-            else if ((items[0].length() > 1 &&
-                (items[0].startsWith("D") || items[0].startsWith("B"))))
+            else if (items[0].length() > 1 &&
+                     (items[0].startsWith("D") || items[0].startsWith("B")))
             {
-                DataSource ds;
-                String dsName;
                 if (null==(ds=datasources.get(dsName=items[0].substring(1))))
                 {
                     ds = new DataSource(dsName);
