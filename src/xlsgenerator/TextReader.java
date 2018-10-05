@@ -199,11 +199,14 @@ public class TextReader
     @Override
     public void close() throws SQLException {
         if (br != null)
+		{
             try {
                 br.close();
-        } catch (IOException ex) {
-            Logger.getLogger(TextReader.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        	} catch (IOException ex) {
+        	    Logger.getLogger(TextReader.class.getName()).log(Level.SEVERE, null, ex);
+        	}
+			br = null;
+		}
     }
 
     @Override
